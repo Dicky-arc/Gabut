@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe Keren</title>
+    <style>
+        /* --- CSS untuk Tampilan Menarik dan Mobile-Friendly --- */
+        :root {
+            --primary-color: #4CAF50; /* Hijau Keren */
+            --secondary-color: #FFC107; /* Kuning Cerah */
+            --bg-color: #f4f4f9;
+            --cell-size: 100px; /* Ukuran default untuk desktop */
+            --board-gap: 5px;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        #status {
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+            min-height: 30px; /* Untuk menghindari layout jumping */
+        }
+
+        /* Tampilan Grid Board */
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, var(--cell-size));
+            grid-template-rows: repeat(3, var(--cell-size));
+            gap: var(--board-gap);
+            margin: 20px auto;
+            border: 3px solid var(--primary-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* Style untuk setiap sel */
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            user-select: none; /* Penting untuk interaksi sentuhan */
+        }
+
+        .cell:hover:not(.x):not(.o) {
+            background-color: #d0d0d0;
+        }
+
+        /* Warna untuk 'X' dan 'O' */
+        .x {
+            color: #E53935; /* Merah */
+        }
+
+        .o {
+            color: var(--secondary-color); /* Kuning */
+        }
+
+        /* Efek Cell Menang */
+        .winning {
+            background-color: #A5D6A7 !important; /* Hijau muda */
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.8; }
+        }
+
+        /* Tombol Reset */
+        #reset-btn {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        #reset-btn:hover {
+            background-color: #388E3C;
+        }
+
+        #reset-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Responsif untuk HP */
+        @media (max-width: 600px) {
+            :root {
+                --cell-size: 80px; /* Perkecil ukuran sel untuk HP */
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            #status {
+                font-size: 1.2em;
+            }
+            
+            .cell {
+                font-size: 2.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tic Tac Toe Keren</h1>
+        <div id="status">Giliran: **X**</div>
+        <div id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        <button id="reset-btn">Mulai Ulang</button>
+    </div>
+
+    <script>
+        // --- JavaScript untuk Logika Game dan Gestur Touch ---
+        const board = document.getElementById('board');
+        const cells = document.querySelectorAll('.cell');
+        const statusDisplay = document.getElementById('status');
+        const resetButton = document.getElementById('reset-btn');
+
+        let gameBoard = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = 'X';
+        let isGameActive = true;
+
+        // Semua kemungkinan kombinasi kemenangan
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Horizontal
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Vertikal
+            [0, 4, 8], [2, 4, 6]             // Diagonal
+        ];
+
+        // 1. Fungsi untuk memperbarui tampilan status
+        const updateStatus = (message) => {
+            statusDisplay.innerHTML = message;
+        };
+
+        // 2. Fungsi untuk memeriksa kemenangan
+        const checkWin = () => {
+            let roundWon = false;
+            let winningCombo = null;
+
+            for (let i = 0; i < winningConditions.length; i++) {
+                const condition = winningConditions[i];
+                const a = gameBoard[condition[0]];
+                const b = gameBoard[condition[1]];
+                const c = gameBoard[condition[2]];
+
+                if (a === '' || b === '' || c === '') {
+                    continue; // Lanjut ke kombinasi berikutnya
+                }
+
+                if (a === b && b === c) {
+                    roundWon = true;
+                    winningCombo = condition;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                updateStatus(`Pemain ${currentPlayer} **Menang**! 🥳`);
+                isGameActive = false;
+                
+                // Beri efek visual pada sel yang menang
+                winningCombo.forEach(index => {
+                    cells[index].classList.add('winning');
+                });
+                return;
+            }
+
+            // Periksa seri (draw)
+            if (!gameBoard.includes('')) {
+                updateStatus('Game **Seri**! 😮');
+                isGameActive = false;
+                return;
+            }
+
+            // Ganti giliran jika game masih aktif
+            changePlayer();
+        };
+
+        // 3. Fungsi untuk mengganti pemain
+        const changePlayer = () => {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            updateStatus(`Giliran: **${currentPlayer}**`);
+        };
+
+        // 4. Fungsi yang dipanggil saat sel di-klik/disentuh
+        const handleCellClick = (event) => {
+            const clickedCell = event.target;
+            const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+
+            // Abaikan jika game tidak aktif atau sel sudah terisi
+            if (gameBoard[clickedCellIndex] !== '' || !isGameActive) {
+                return;
+            }
+
+            // Terapkan langkah pemain
+            gameBoard[clickedCellIndex] = currentPlayer;
+            clickedCell.textContent = currentPlayer;
+            clickedCell.classList.add(currentPlayer.toLowerCase()); // Tambahkan class untuk style warna
+
+            // Cek status game
+            checkWin();
+        };
+
+        // 5. Fungsi untuk mereset game
+        const resetGame = () => {
+            gameBoard = ['', '', '', '', '', '', '', '', ''];
+            isGameActive = true;
+            currentPlayer = 'X';
+            
+            // Hapus isi dan class dari semua sel
+            cells.forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('x', 'o', 'winning');
+            });
+
+            updateStatus(`Giliran: **${currentPlayer}**`);
+        };
+
+        // 6. Daftarkan event listener (Click/Tap)
+        cells.forEach(cell => {
+            cell.addEventListener('click', handleCellClick);
+            // Untuk memastikan kompatibilitas sentuh yang lebih luas, 
+            // 'click' pada dasarnya sudah berfungsi sebagai 'tap' di mobile browser.
+        });
+
+        resetButton.addEventListener('click', resetGame);
+
+        // Inisialisasi status awal
+        updateStatus(`Giliran: **${currentPlayer}**`);
+
+    </script>
+</body>
+</html>
